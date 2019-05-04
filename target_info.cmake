@@ -1,0 +1,78 @@
+# Target info tracker for cmake
+# v0.1
+# Till Zickmantel
+
+macro(enable_register_targets)
+    set(REGISTER_TARGETS TRUE)
+    set_property(GLOBAL PROPERTY targets)
+endmacro(enable_register_targets)
+
+macro(add_library)
+    if (REGISTER_TARGETS)
+        get_property(tmp GLOBAL PROPERTY targets)
+        set(tmp ${tmp} ${ARGV0})
+        set_property(GLOBAL PROPERTY targets ${tmp})
+    endif()
+    _add_library(${ARGV})
+endmacro(add_library)
+
+macro(add_executable)
+    if (REGISTER_TARGETS)
+        get_property(tmp GLOBAL PROPERTY targets)
+        set(tmp ${tmp} ${ARGV0})
+        set_property(GLOBAL PROPERTY targets ${tmp})
+    endif()
+    _add_executable(${ARGV})
+endmacro(add_executable)
+
+function(dump_target_info file)
+
+    get_property(all_targets GLOBAL PROPERTY targets)
+
+    file(WRITE ${file} "")
+    foreach(target ${all_targets})
+
+        get_target_property(type ${target} TYPE)
+
+        if (NOT ${type} STREQUAL "INTERFACE_LIBRARY")
+            get_target_property(sources ${target} SOURCES)
+            get_target_property(includes ${target} INCLUDE_DIRECTORIES)
+            get_target_property(directory ${target} SOURCE_DIR)
+            get_target_property(links ${target} LINK_LIBRARIES)
+        else()
+            get_target_property(sources ${target} INTERFACE_SOURCES)
+            get_target_property(includes ${target} INTERFACE_INCLUDE_DIRECTORIES)
+            get_target_property(directory ${target} INTERFACE_SOURCE_DIR)
+            get_target_property(links ${target} INTERFACE_LINK_LIBRARIES)
+        endif()
+
+        file(APPEND ${file} "${target}:\n")
+        file(APPEND ${file} "  type: ${type}\n")
+        file(APPEND ${file} "  directory: ${directory}\n")
+        file(APPEND ${file} "  includes:\n")
+        if(includes)
+            foreach(include ${includes})
+                file(APPEND ${file} "    - ${include}\n")
+            endforeach()
+        endif()
+        file(APPEND ${file} "  sources:\n")
+        if(sources)
+            foreach(source ${sources})
+                if (IS_ABSOLUTE ${source})
+                    file(APPEND ${file} "    - ${source}\n")
+                else()
+                    file(APPEND ${file} "    - ${directory}/${source}\n")
+                endif()
+            endforeach()
+        endif()
+        file(APPEND ${file} "  links:\n")
+        if(links)
+            foreach(link ${links})
+                file(APPEND ${file} "    - ${link}\n")
+            endforeach()
+        endif()
+    endforeach()
+
+    message("-- Target info written to ${file}")
+
+endfunction(dump_target_info)
